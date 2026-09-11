@@ -22,102 +22,183 @@ jobs:
       - name: Build production app
         run: bun run build
 
-      - name: Inspect build output
+      - name: Check production output
         run: |
           echo "========================================"
-          echo "BUILD OUTPUT"
+          echo "PRODUCTION OUTPUT"
           echo "========================================"
 
-          if [ ! -d ".output" ]; then
-            echo "❌ ERROR: .output directory was not created."
+          if [ ! -f ".output/server/index.mjs" ]; then
+            echo "❌ Server entry was not created."
             exit 1
           fi
 
-          find .output -maxdepth 6 -type f | sort
-
-          echo "========================================"
-
-      - name: Check build output
-        run: |
-          if [ ! -d ".output" ]; then
-            echo "❌ ERROR: .output directory does not exist."
+          if [ ! -d ".output/public" ]; then
+            echo "❌ Public directory was not created."
             exit 1
           fi
 
-          FILE_COUNT=$(find .output -type f | wc -l)
-
-          echo "Files found in .output: $FILE_COUNT"
-
-          if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "❌ ERROR: .output is empty."
-            exit 1
-          fi
-
-          echo "✅ Production build created files successfully."
-
-      - name: Find HTML files
-        run: |
-          echo "========================================"
-          echo "HTML FILES"
-          echo "========================================"
-
-          HTML_COUNT=$(find .output -type f \( -name "*.html" -o -name "*.htm" \) | wc -l)
-
-          echo "HTML files found: $HTML_COUNT"
-
-          find .output -type f \( -name "*.html" -o -name "*.htm" \) | sort || true
-
-          echo "========================================"
-
-      - name: Find JavaScript files
-        run: |
-          echo "========================================"
-          echo "JAVASCRIPT FILES"
-          echo "========================================"
-
-          JS_COUNT=$(find .output -type f \( -name "*.js" -o -name "*.mjs" \) | wc -l)
-
-          echo "JavaScript files found: $JS_COUNT"
-
-          find .output -type f \( -name "*.js" -o -name "*.mjs" \) | sort | head -100 || true
-
-          echo "========================================"
+          JS_COUNT=$(find .output/public -type f \( -name "*.js" -o -name "*.mjs" \) | wc -l)
 
           if [ "$JS_COUNT" -eq 0 ]; then
-            echo "❌ ERROR: No JavaScript files found."
+            echo "❌ No public JavaScript files found."
             exit 1
           fi
 
-          echo "✅ JavaScript files exist."
+          echo "✅ Server entry exists."
+          echo "✅ Public directory exists."
+          echo "✅ Public JavaScript files exist: $JS_COUNT"
 
-      - name: Locate application entry
+      - name: Start production server
         run: |
+          node .output/server/index.mjs > server.log 2>&1 &
+          echo $! > server.pid
+
+          echo "Waiting for server..."
+
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:3000/ > response.html; then
+              if [ -s response.html ]; then
+                echo "✅ Server responded."
+                break
+              fi
+            fi
+
+            sleep 2
+          done
+
           echo "========================================"
-          echo "POSSIBLE APPLICATION ENTRY FILES"
+          echo "SERVER LOG"
+          echo "========================================"
+          cat server.log || true
+
+          echo "========================================"
+          echo "HTTP RESPONSE"
           echo "========================================"
 
-          find .output \
-            -type f \
-            \( -name "index.html" \
-            -o -name "index.mjs" \
-            -o -name "server.mjs" \
-            -o -name "server.js" \
-            -o -name "entry.mjs" \
-            -o -name "entry.js" \) \
-            | sort || true
+          head -c 1000 response.html || true
 
+          echo ""
           echo "========================================"
+
+      - name: Verify HTML response
+        run: |
+          if [ ! -s response.html ]; then
+            echo "❌ ERROR: Server returned no HTML response."
+            exit 1
+          fi
+
+          if grep -qi "<html" response.html; then
+            echo "✅ HTML document detected."
+          else
+            echo "❌ ERROR: Response does not contain an HTML document."
+            exit 1
+          fi
+
+          if grep -qi "Faith Mark" response.html; then
+            echo "✅ Faith Mark content detected."
+          else
+            echo "⚠️ Faith Mark text was not found in the first response."
+          fi
+
+      - name: Install Playwright
+        run: |
+          bun add -d playwright
+
+      - name: Install Chromium
+        run: |
+          bunx playwright install --with-deps chromium
+
+      - name: Test app in Chromium
+        run: |
+          cat > test-app.mjs <<'EOF'
+          import { chromium } from "playwright";
+
+          const browser = await chromium.launch({
+            headless: true
+          });
+
+          const page = await browser.newPage();
+
+          const errors = [];
+
+          page.on("console", message => {
+            if (message.type() === "error") {
+              errors.push(`Console error: ${message.text()}`);
+            }
+          });
+
+          page.on("pageerror", error => {
+            errors.push(`Page error: ${error.message}`);
+          });
+
+          console.log("Opening Faith Mark...");
+
+          const response = await page.goto(
+            "http://127.0.0.1:3000/",
+            {
+              waitUntil: "networkidle",
+              timeout: 30000
+            }
+          );
+
+          console.log("HTTP status:", response?.status());
+
+          await page.waitForTimeout(3000);
+
+          const title = await page.title();
+          const bodyText = await page.locator("body").innerText();
+
+          console.log("Page title:", title);
+          console.log("Body text length:", bodyText.length);
+
+          if (!response || !response.ok()) {
+            throw new Error("The application did not return a successful HTTP response.");
+          }
+
+          if (bodyText.trim().length === 0) {
+            throw new Error("WHITE SCREEN DETECTED: body contains no visible text.");
+          }
+
+          if (errors.length > 0) {
+            console.log("========================================");
+            console.log("BROWSER ERRORS");
+            console.log("========================================");
+
+            for (const error of errors) {
+              console.log(error);
+            }
+
+            throw new Error(
+              `The application produced ${errors.length} browser error(s).`
+            );
+          }
+
+          console.log("========================================");
+          console.log("✅ BROWSER TEST PASSED");
+          console.log("========================================");
+          console.log("The page loaded successfully.");
+          console.log("The page contains visible content.");
+          console.log("No browser JavaScript errors were detected.");
+
+          await browser.close();
+          EOF
+
+          node test-app.mjs
 
       - name: Final result
         run: |
           echo ""
           echo "========================================"
-          echo "✅ PRODUCTION BUILD TEST PASSED"
+          echo "🎉 FAITH MARK WEB TEST PASSED"
           echo "========================================"
           echo ""
-          echo "The application built successfully."
-          echo "The .output directory contains build files."
-          echo "JavaScript application files were found."
+          echo "✓ Production build works"
+          echo "✓ Server starts"
+          echo "✓ HTML is returned"
+          echo "✓ Faith Mark page loads"
+          echo "✓ Page is not blank"
+          echo "✓ No browser JavaScript errors"
           echo ""
-          echo "Next step: inspect the output before using Corenna."
+          echo "SAFE TO PROCEED TO CORenna APK TEST"
           echo "========================================"
