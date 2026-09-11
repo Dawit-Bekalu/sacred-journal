@@ -78,9 +78,9 @@ export const THEMES: ThemeDef[] = [
 ];
 
 export function applyTheme(id: string) {
-  const theme = THEMES.find((t) => t.id === id) ?? THEMES[0];
+  const theme = THEMES.find((t) => t.id === id) ?? THEMES[0]!;
   const root = document.documentElement;
   for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", theme.vars["--fm-bg"]);
+  if (meta) meta.setAttribute("content", theme.vars["--fm-bg"] ?? "#000000");
 }
