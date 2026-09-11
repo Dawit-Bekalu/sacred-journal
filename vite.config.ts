@@ -21,12 +21,33 @@ export default defineConfig({
           enabled: false,
         },
         manifest: false,
+
         workbox: {
           globPatterns: [
-            "**/*.{js,css,html,ico,png,svg,woff2,webmanifest}",
+            "**/*.{js,css,html,ico,png,svg,woff2,webmanifest}"
           ],
-          navigateFallback: "/",
-          navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
+
+          runtimeCaching: [
+            {
+              urlPattern: ({ request }) => request.mode === "navigate",
+              handler: "NetworkFirst",
+              options: {
+                cacheName: "faith-marker-pages",
+                networkTimeoutSeconds: 3,
+              },
+            },
+            {
+              urlPattern: ({ request }) =>
+                ["style", "script", "image", "font"].includes(
+                  request.destination
+                ),
+              handler: "CacheFirst",
+              options: {
+                cacheName: "faith-marker-assets",
+              },
+            },
+          ],
+
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
