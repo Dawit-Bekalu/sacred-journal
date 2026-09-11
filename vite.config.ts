@@ -17,12 +17,16 @@ export default defineConfig({
         registerType: "autoUpdate",
         injectRegister: null,
         filename: "sw.js",
+
         devOptions: {
           enabled: false,
         },
+
         manifest: false,
 
         workbox: {
+          globDirectory: ".output/public",
+
           globPatterns: [
             "**/*.{js,css,html,ico,png,svg,woff2,webmanifest}"
           ],
