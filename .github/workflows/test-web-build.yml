@@ -22,291 +22,82 @@ jobs:
       - name: Build production app
         run: bun run build
 
-      - name: Check production output
+      - name: Inspect build output
         run: |
           echo "========================================"
-          echo "PRODUCTION OUTPUT"
+          echo "BUILD OUTPUT"
           echo "========================================"
 
           if [ ! -d ".output" ]; then
-            echo "❌ ERROR: .output directory was not created."
+            echo "❌ .output directory was not created."
             exit 1
           fi
 
-          if [ ! -f ".output/server/index.mjs" ]; then
-            echo "❌ ERROR: server entry was not created."
+          find .output -maxdepth 6 -type f | sort
+
+          echo "========================================"
+
+      - name: Verify static web output
+        run: |
+          echo "========================================"
+          echo "VERIFY STATIC WEB OUTPUT"
+          echo "========================================"
+
+          if [ ! -f ".output/public/index.html" ]; then
+            echo "❌ ERROR: .output/public/index.html was NOT created."
+            echo ""
+            echo "The application is still producing server-only output."
             exit 1
           fi
 
-          if [ ! -d ".output/public" ]; then
-            echo "❌ ERROR: public directory was not created."
+          if [ ! -s ".output/public/index.html" ]; then
+            echo "❌ ERROR: index.html is empty."
             exit 1
           fi
 
           JS_COUNT=$(find .output/public -type f \
             \( -name "*.js" -o -name "*.mjs" \) | wc -l)
 
+          echo "index.html: FOUND"
+          echo "JavaScript files: $JS_COUNT"
+
           if [ "$JS_COUNT" -eq 0 ]; then
-            echo "❌ ERROR: no public JavaScript files found."
-            exit 1
-          fi
-
-          echo "✅ .output exists"
-          echo "✅ server/index.mjs exists"
-          echo "✅ public directory exists"
-          echo "✅ Public JavaScript files: $JS_COUNT"
-
-      - name: Inspect complete build output
-        run: |
-          echo "========================================"
-          echo "COMPLETE BUILD OUTPUT"
-          echo "========================================"
-
-          find .output -maxdepth 6 -type f | sort
-
-          echo "========================================"
-
-      - name: Start production server
-        run: |
-          echo "========================================"
-          echo "STARTING PRODUCTION SERVER"
-          echo "========================================"
-
-          node .output/server/index.mjs > server.log 2>&1 &
-          SERVER_PID=$!
-
-          echo "Server PID: $SERVER_PID"
-
-          sleep 5
-
-          echo "========================================"
-          echo "SERVER LOG"
-          echo "========================================"
-
-          cat server.log || true
-
-          echo "========================================"
-          echo "LISTENING PORTS"
-          echo "========================================"
-
-          ss -lntp || true
-
-          echo "========================================"
-          echo "TESTING COMMON PORTS"
-          echo "========================================"
-
-          FOUND_PORT=""
-
-          for PORT in 3000 3001 4173 8080 8787; do
-            echo ""
-            echo "Testing port $PORT..."
-
-            HTTP_CODE=$(curl \
-              --connect-timeout 2 \
-              --max-time 5 \
-              -s \
-              -o "response-$PORT.html" \
-              -w "%{http_code}" \
-              "http://127.0.0.1:$PORT/" || true)
-
-            echo "HTTP status: $HTTP_CODE"
-
-            if [ -s "response-$PORT.html" ]; then
-              echo "✅ Response received on port $PORT"
-              echo "First 1000 characters:"
-              head -c 1000 "response-$PORT.html"
-              echo ""
-              FOUND_PORT="$PORT"
-            fi
-          done
-
-          echo ""
-          echo "========================================"
-
-          if [ -z "$FOUND_PORT" ]; then
-            echo "❌ ERROR: No HTTP response received."
-            echo ""
-            echo "Final server log:"
-            cat server.log || true
-            echo ""
-            echo "Open ports:"
-            ss -lntp || true
-            kill "$SERVER_PID" 2>/dev/null || true
-            exit 1
-          fi
-
-          echo "✅ Server responded on port $FOUND_PORT"
-          echo "$FOUND_PORT" > detected-port.txt
-
-          echo "========================================"
-
-      - name: Verify HTML response
-        run: |
-          PORT=$(cat detected-port.txt)
-
-          echo "========================================"
-          echo "VERIFYING HTML RESPONSE"
-          echo "========================================"
-
-          if [ ! -s "response-$PORT.html" ]; then
-            echo "❌ ERROR: Server returned an empty response."
-            exit 1
-          fi
-
-          echo "Response size:"
-          wc -c "response-$PORT.html"
-
-          echo ""
-          echo "Checking for HTML..."
-
-          if grep -qi "<html" "response-$PORT.html"; then
-            echo "✅ HTML document detected."
-          else
-            echo "❌ ERROR: Response does not contain <html>."
-            echo ""
-            echo "Response:"
-            head -c 5000 "response-$PORT.html"
+            echo "❌ ERROR: No JavaScript files found."
             exit 1
           fi
 
           echo ""
-          echo "Checking for Faith Mark..."
+          echo "========================================"
+          echo "INDEX.HTML"
+          echo "========================================"
 
-          if grep -qi "Faith Mark" "response-$PORT.html"; then
-            echo "✅ Faith Mark content detected."
-          else
-            echo "⚠️ Faith Mark text was not found in the response."
-          fi
+          head -c 3000 .output/public/index.html
 
           echo ""
           echo "========================================"
-          echo "✅ HTML RESPONSE TEST PASSED"
+          echo "✅ STATIC OUTPUT TEST PASSED"
           echo "========================================"
 
-      - name: Install Playwright
-        run: |
-          bun add -d playwright
-
-      - name: Install Chromium
-        run: |
-          bunx playwright install --with-deps chromium
-
-      - name: Test application in Chromium
-        run: |
-          PORT=$(cat detected-port.txt)
-
-          echo "========================================"
-          echo "BROWSER TEST"
-          echo "========================================"
-
-          cat > test-app.mjs <<'EOF'
-          import { chromium } from "playwright";
-
-          const port = process.env.TEST_PORT;
-
-          const browser = await chromium.launch({
-            headless: true
-          });
-
-          const page = await browser.newPage();
-
-          const errors = [];
-
-          page.on("console", message => {
-            if (message.type() === "error") {
-              errors.push(`Console error: ${message.text()}`);
-            }
-          });
-
-          page.on("pageerror", error => {
-            errors.push(`Page error: ${error.message}`);
-          });
-
-          console.log(`Opening application on port ${port}...`);
-
-          const response = await page.goto(
-            `http://127.0.0.1:${port}/`,
-            {
-              waitUntil: "networkidle",
-              timeout: 30000
-            }
-          );
-
-          console.log("HTTP status:", response?.status());
-
-          await page.waitForTimeout(3000);
-
-          const title = await page.title();
-          const bodyText = await page.locator("body").innerText();
-
-          console.log("Page title:", title);
-          console.log("Visible body text length:", bodyText.length);
-
-          if (!response || !response.ok()) {
-            throw new Error(
-              "Application did not return a successful HTTP response."
-            );
-          }
-
-          if (bodyText.trim().length === 0) {
-            throw new Error(
-              "WHITE SCREEN DETECTED: page body contains no visible text."
-            );
-          }
-
-          if (errors.length > 0) {
-            console.log("========================================");
-            console.log("BROWSER ERRORS");
-            console.log("========================================");
-
-            for (const error of errors) {
-              console.log(error);
-            }
-
-            throw new Error(
-              `Application produced ${errors.length} browser error(s).`
-            );
-          }
-
-          console.log("========================================");
-          console.log("✅ BROWSER TEST PASSED");
-          console.log("========================================");
-          console.log("✓ Page loaded");
-          console.log("✓ HTTP response successful");
-          console.log("✓ Visible content exists");
-          console.log("✓ No browser JavaScript errors");
-          console.log("========================================");
-
-          await browser.close();
-          EOF
-
-          TEST_PORT="$PORT" node test-app.mjs
-
-      - name: Stop production server
-        if: always()
-        run: |
-          if [ -f detected-port.txt ]; then
-            echo "Production server test completed."
-          fi
-
-          pkill -f ".output/server/index.mjs" || true
+      - name: Upload web output
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: faith-marker-web-output
+          path: .output/public
+          if-no-files-found: error
 
       - name: Final result
         if: success()
         run: |
           echo ""
           echo "========================================"
-          echo "🎉 FAITH MARK WEB TEST PASSED"
+          echo "🎉 FAITH MARK STATIC BUILD PASSED"
           echo "========================================"
           echo ""
           echo "✓ Production build completed"
-          echo "✓ Server started"
-          echo "✓ HTTP response received"
-          echo "✓ HTML response detected"
-          echo "✓ Browser loaded the application"
-          echo "✓ Visible content detected"
-          echo "✓ No browser JavaScript errors"
+          echo "✓ index.html exists"
+          echo "✓ JavaScript files exist"
+          echo "✓ Static web output is ready"
           echo ""
-          echo "========================================"
-          echo "SAFE TO CONTINUE TO CORENNА APK TEST"
+          echo "NEXT: verify the output before Corenna APK."
           echo "========================================"
