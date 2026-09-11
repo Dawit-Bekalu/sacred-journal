@@ -104,16 +104,14 @@ export function evaluateAchievements(
     if (a.rule.type === "books") {
       ok = a.rule.books.length > 0 && a.rule.books.every(complete);
     } else if (a.rule.type === "group") {
-      const list = books.filter(
-        (b) => b.group === a.rule.type === false ? false : b.group === (a.rule as { group: string }).group,
+      const rule = a.rule;
+      const scoped = books.filter(
+        (b) => b.group === rule.group && (rule.testament === "ALL" || b.testament === rule.testament),
       );
-      const scoped =
-        (a.rule as { testament: string }).testament === "ALL"
-          ? list
-          : list.filter((b) => b.testament === (a.rule as { testament: string }).testament);
       ok = scoped.length > 0 && scoped.every((b) => isBookComplete(tracker, b));
     } else if (a.rule.type === "testament") {
-      const scoped = books.filter((b) => b.testament === (a.rule as { testament: string }).testament);
+      const rule = a.rule;
+      const scoped = books.filter((b) => b.testament === rule.testament);
       ok = scoped.length > 0 && scoped.every((b) => isBookComplete(tracker, b));
     } else if (a.rule.type === "percent") {
       ok = t.all.chapters > 0 && t.all.pct + 1e-9 >= a.rule.percent;
