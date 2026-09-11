@@ -76,21 +76,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover",
+      },
+      { title: "Faith Mark" },
+      { name: "description", content: "Offline Bible reading tracker" },
+      { name: "theme-color", content: "#000000" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Faith Mark" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { property: "og:title", content: "Faith Mark" },
+      { property: "og:description", content: "Offline Bible reading tracker" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
