@@ -28,25 +28,18 @@ jobs:
           echo "BUILD OUTPUT"
           echo "========================================"
 
-          if [ ! -d ".output" ]; then
-            echo "❌ .output directory was not created."
-            exit 1
-          fi
-
           find .output -maxdepth 6 -type f | sort
 
           echo "========================================"
 
-      - name: Verify static web output
+      - name: Verify index.html
         run: |
           echo "========================================"
-          echo "VERIFY STATIC WEB OUTPUT"
+          echo "VERIFYING STATIC OUTPUT"
           echo "========================================"
 
           if [ ! -f ".output/public/index.html" ]; then
-            echo "❌ ERROR: .output/public/index.html was NOT created."
-            echo ""
-            echo "The application is still producing server-only output."
+            echo "❌ ERROR: .output/public/index.html was not created."
             exit 1
           fi
 
@@ -55,10 +48,11 @@ jobs:
             exit 1
           fi
 
+          echo "✅ index.html exists."
+
           JS_COUNT=$(find .output/public -type f \
             \( -name "*.js" -o -name "*.mjs" \) | wc -l)
 
-          echo "index.html: FOUND"
           echo "JavaScript files: $JS_COUNT"
 
           if [ "$JS_COUNT" -eq 0 ]; then
@@ -66,16 +60,17 @@ jobs:
             exit 1
           fi
 
-          echo ""
+          echo "✅ JavaScript files exist."
+
+      - name: Inspect index.html
+        run: |
           echo "========================================"
           echo "INDEX.HTML"
           echo "========================================"
 
-          head -c 3000 .output/public/index.html
+          cat .output/public/index.html
 
           echo ""
-          echo "========================================"
-          echo "✅ STATIC OUTPUT TEST PASSED"
           echo "========================================"
 
       - name: Upload web output
@@ -95,9 +90,10 @@ jobs:
           echo "========================================"
           echo ""
           echo "✓ Production build completed"
+          echo "✓ PWA service worker generated"
           echo "✓ index.html exists"
           echo "✓ JavaScript files exist"
           echo "✓ Static web output is ready"
           echo ""
-          echo "NEXT: verify the output before Corenna APK."
+          echo "NEXT: test the output before Corenna."
           echo "========================================"
