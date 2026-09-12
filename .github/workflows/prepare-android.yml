@@ -11,36 +11,84 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - name: Install dependencies
+      - name: Install project dependencies
         run: npm install
 
       - name: Install Capacitor
         run: |
           npm install @capacitor/core @capacitor/android
-          npm install -D @capacitor/cli
+          npm install --save-dev @capacitor/cli
 
-      - name: Build web app
+      - name: Build web application
         run: npm run build
+
+      - name: Check web output
+        run: |
+          echo "Checking build output..."
+
+          if [ -f "dist/index.html" ]; then
+            echo "Found dist/index.html"
+          elif [ -f ".output/public/index.html" ]; then
+            echo "Found .output/public/index.html"
+          elif [ -f "build/index.html" ]; then
+            echo "Found build/index.html"
+          else
+            echo "ERROR: No index.html found in build output."
+            echo "Searching for index.html files..."
+            find . -name "index.html" -not -path "./node_modules/*" -print
+            exit 1
+          fi
+
+      - name: Check Capacitor configuration
+        run: |
+          echo "Checking Capacitor configuration..."
+
+          if [ -f "capacitor.config.ts" ]; then
+            echo "capacitor.config.ts found"
+          elif [ -f "capacitor.config.json" ]; then
+            echo "capacitor.config.json found"
+          else
+            echo "ERROR: Capacitor configuration not found."
+            exit 1
+          fi
 
       - name: Create Android project
         run: |
-          if [ ! -d "android" ]; then
+          if [ -d "android" ]; then
+            echo "Android project already exists."
+          else
+            echo "Creating Android project..."
             npx cap add android
           fi
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor Android
         run: npx cap sync android
 
-      - name: Commit Android project
+      - name: Verify Android project
+        run: |
+          if [ -d "android" ]; then
+            echo "Android project successfully created."
+          else
+            echo "ERROR: Android folder was not created."
+            exit 1
+          fi
+
+          if [ -f "android/settings.gradle" ] || [ -f "android/settings.gradle.kts" ]; then
+            echo "Android Gradle project found."
+          else
+            echo "ERROR: Android Gradle project files not found."
+            exit 1
+          fi
+
+      - name: Commit Android project to repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -53,3 +101,10 @@ jobs:
             git commit -m "Prepare project for Android Studio"
             git push
           fi
+
+      - name: Finished
+        run: |
+          echo "======================================"
+          echo "Android Studio project is ready!"
+          echo "Open the android folder in Android Studio."
+          echo "======================================"
