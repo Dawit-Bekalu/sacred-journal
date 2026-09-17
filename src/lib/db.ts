@@ -1,5 +1,6 @@
 import { DEFAULT_ACHIEVEMENTS, type Achievement } from "./achievements";
 import { DEFAULT_BOOKS, DEFAULT_GROUPS, type BookDef } from "./bible";
+import type { Lang } from "./i18n";
 
 export interface Tracker {
   id: string;
@@ -43,7 +44,7 @@ export const defaultState = (): AppState => ({
   books: DEFAULT_BOOKS.map((b) => ({ ...b })),
   groups: { OT: [...DEFAULT_GROUPS.OT], NT: [...DEFAULT_GROUPS.NT] },
   achievements: DEFAULT_ACHIEVEMENTS.map((a) => ({ ...a })),
-  settings: { theme: "midnight" },
+  settings: { theme: "midnight", language: "en" },
 });
 
 const DB_NAME = "faith-mark";
@@ -119,6 +120,9 @@ export function migrate(input: Partial<AppState>): AppState {
     books: input.books?.length ? input.books : base.books,
     groups: input.groups ?? base.groups,
     achievements: input.achievements?.length ? input.achievements : base.achievements,
-    settings: { theme: input.settings?.theme ?? base.settings.theme },
+    settings: {
+      theme: input.settings?.theme ?? base.settings.theme,
+      language: input.settings?.language === "am" ? "am" : "en",
+    },
   };
 }

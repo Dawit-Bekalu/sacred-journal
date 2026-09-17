@@ -12,6 +12,7 @@ import {
 import type { Achievement } from "./achievements";
 import type { BookDef } from "./bible";
 import { defaultState, loadState, migrate, saveState, type AppState, type Tracker } from "./db";
+import { translate, type TKey } from "./i18n";
 import { applyTheme } from "./theme";
 
 interface Ctx {
