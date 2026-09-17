@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 
 import { defaultState, migrate, type AppState } from "@/lib/db";
-import { useStore } from "@/lib/store";
+import type { Lang } from "@/lib/i18n";
+import { useStore, useT } from "@/lib/store";
 import { THEMES } from "@/lib/theme";
 
 export function SettingsView({ onBack }: { onBack: () => void }) {
   const { state, update, replaceAll } = useStore();
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -21,9 +23,9 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
-      setMessage("Backup file saved to your device.");
+      setMessage(t("msgBackupSaved"));
     } catch {
-      setMessage("Could not create the backup file.");
+      setMessage(t("msgBackupFail"));
     }
   };
 
@@ -32,64 +34,85 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
       const text = await file.text();
       const parsed = JSON.parse(text) as Partial<AppState>;
       if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.trackers)) {
-        setMessage("That file is not a Faith Mark backup.");
+        setMessage(t("msgNotBackup"));
         return;
       }
       replaceAll(migrate(parsed));
-      setMessage("Backup restored successfully.");
+      setMessage(t("msgRestored"));
     } catch {
-      setMessage("Could not read that file.");
+      setMessage(t("msgReadFail"));
     }
   };
 
   const resetAll = () => {
     replaceAll(defaultState());
-    setMessage("Everything was reset to defaults.");
+    setMessage(t("msgReset"));
   };
 
   return (
     <div className="fm-screen">
       <header className="fm-header">
         <button className="fm-linkbtn" onClick={onBack}>
-          ‹ Back
+          {t("back")}
         </button>
-        <h1 className="fm-title">Settings</h1>
+        <h1 className="fm-title">{t("settings")}</h1>
         <span />
       </header>
 
       <div className="fm-body fm-pad">
-        <h2 className="fm-section">Theme</h2>
+        <h2 className="fm-section">{t("language")}</h2>
         <div className="fm-theme-grid">
-          {THEMES.map((t) => (
+          {(
+            [
+              ["en", "English"],
+              ["am", "አማርኛ"],
+            ] as Array<[Lang, string]>
+          ).map(([id, label]) => (
             <button
-              key={t.id}
-              className={`fm-theme${state.settings.theme === t.id ? " is-active" : ""}`}
+              key={id}
+              className={`fm-theme${state.settings.language === id ? " is-active" : ""}`}
               onClick={() =>
                 update((d) => {
-                  d.settings.theme = t.id;
+                  d.settings.language = id;
+                  return d;
+                })
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <h2 className="fm-section">{t("theme")}</h2>
+        <div className="fm-theme-grid">
+          {THEMES.map((theme) => (
+            <button
+              key={theme.id}
+              className={`fm-theme${state.settings.theme === theme.id ? " is-active" : ""}`}
+              onClick={() =>
+                update((d) => {
+                  d.settings.theme = theme.id;
                   return d;
                 })
               }
             >
               <span className="fm-theme-dots">
-                <i style={{ background: t.vars["--fm-bg"] }} />
-                <i style={{ background: t.vars["--fm-surface"] }} />
-                <i style={{ background: t.vars["--fm-accent"] }} />
+                <i style={{ background: theme.vars["--fm-bg"] }} />
+                <i style={{ background: theme.vars["--fm-surface"] }} />
+                <i style={{ background: theme.vars["--fm-accent"] }} />
               </span>
-              {t.label}
+              {theme.label}
             </button>
           ))}
         </div>
 
-        <h2 className="fm-section">Backup &amp; restore</h2>
-        <p className="fm-hint">
-          Everything is stored on this device. Save a backup file, then restore it any time — no internet needed.
-        </p>
+        <h2 className="fm-section">{t("backupRestore")}</h2>
+        <p className="fm-hint">{t("backupHint")}</p>
         <button className="fm-btn fm-btn-primary fm-full" onClick={backup}>
-          Back up to file
+          {t("backupToFile")}
         </button>
         <button className="fm-btn fm-btn-soft fm-full" onClick={() => fileRef.current?.click()}>
-          Restore from file
+          {t("restoreFromFile")}
         </button>
         <input
           ref={fileRef}
@@ -103,14 +126,14 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
           }}
         />
 
-        <h2 className="fm-section">Danger zone</h2>
+        <h2 className="fm-section">{t("dangerZone")}</h2>
         <button className="fm-btn fm-btn-ghost fm-full fm-danger" onClick={resetAll}>
-          Reset all data
+          {t("resetAll")}
         </button>
 
         {message && <p className="fm-toast">{message}</p>}
 
-        <p className="fm-hint fm-center">Faith Mark · works fully offline</p>
+        <p className="fm-hint fm-center">{t("worksOffline")}</p>
       </div>
     </div>
   );

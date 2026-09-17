@@ -12,6 +12,7 @@ import {
 import type { Achievement } from "./achievements";
 import type { BookDef } from "./bible";
 import { defaultState, loadState, migrate, saveState, type AppState, type Tracker } from "./db";
+import { translate, type TKey } from "./i18n";
 import { applyTheme } from "./theme";
 
 interface Ctx {
@@ -64,6 +65,12 @@ export function useStore() {
   const ctx = useContext(StoreContext);
   if (!ctx) throw new Error("useStore must be used inside StoreProvider");
   return ctx;
+}
+
+export function useT() {
+  const { state } = useStore();
+  const lang = state.settings.language;
+  return useCallback((key: TKey) => translate(lang, key), [lang]);
 }
 
 /* ---------- derived helpers ---------- */

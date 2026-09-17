@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { TRACKER_COLORS, type Tracker } from "@/lib/db";
-import { totals, useStore } from "@/lib/store";
+import { totals, useStore, useT } from "@/lib/store";
 import { Modal } from "./ui";
 
 export function TrackerListView({
@@ -12,6 +12,7 @@ export function TrackerListView({
   onSettings: () => void;
 }) {
   const { state, update } = useStore();
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<{ mode: "add" | "edit"; tracker?: Tracker } | null>(null);
   const [name, setName] = useState("");
@@ -22,10 +23,10 @@ export function TrackerListView({
     setColor(TRACKER_COLORS[0]!);
     setDialog({ mode: "add" });
   };
-  const openEdit = (t: Tracker) => {
-    setName(t.name);
-    setColor(t.color);
-    setDialog({ mode: "edit", tracker: t });
+  const openEdit = (tr: Tracker) => {
+    setName(tr.name);
+    setColor(tr.color);
+    setDialog({ mode: "edit", tracker: tr });
   };
 
   const save = () => {
@@ -33,10 +34,10 @@ export function TrackerListView({
     if (!trimmed) return;
     update((d) => {
       if (dialog?.mode === "edit" && dialog.tracker) {
-        const t = d.trackers.find((x) => x.id === dialog.tracker!.id);
-        if (t) {
-          t.name = trimmed;
-          t.color = color;
+        const tr = d.trackers.find((x) => x.id === dialog.tracker!.id);
+        if (tr) {
+          tr.name = trimmed;
+          tr.color = color;
         }
       } else {
         d.trackers.push({
@@ -55,7 +56,7 @@ export function TrackerListView({
 
   const remove = (id: string) => {
     update((d) => {
-      d.trackers = d.trackers.filter((t) => t.id !== id);
+      d.trackers = d.trackers.filter((x) => x.id !== id);
       return d;
     });
   };
@@ -64,20 +65,20 @@ export function TrackerListView({
     <div className="fm-screen">
       <header className="fm-header">
         <span />
-        <h1 className="fm-title">Bible Trackers</h1>
-        <button className="fm-iconbtn" onClick={onSettings} aria-label="Settings">
+        <h1 className="fm-title">{t("bibleTrackers")}</h1>
+        <button className="fm-iconbtn" onClick={onSettings} aria-label={t("settings")}>
           <span className="fm-gear">⚙</span>
-          <small>Settings</small>
+          <small>{t("settings")}</small>
         </button>
       </header>
 
       <div className="fm-toolbar">
         <button className="fm-linkbtn" onClick={openAdd}>
-          📑 Add new
+          {t("addNew")}
         </button>
         {state.trackers.length > 0 && (
           <button className="fm-linkbtn" onClick={() => setEditing((v) => !v)}>
-            ✏️ {editing ? "Done" : "Edit"}
+            ✏️ {editing ? t("done") : t("edit")}
           </button>
         )}
       </div>
@@ -86,32 +87,32 @@ export function TrackerListView({
         {state.trackers.length === 0 ? (
           <div className="fm-empty">
             <div className="fm-blob">📚</div>
-            <h2>No Bible Trackers</h2>
-            <p>Add a new Bible Tracker to keep track of your reading progress</p>
+            <h2>{t("noTrackers")}</h2>
+            <p>{t("noTrackersHint")}</p>
             <button className="fm-btn fm-btn-soft" onClick={openAdd}>
-              + Add new Bible Tracker
+              {t("addNewTracker")}
             </button>
           </div>
         ) : (
           <ul className="fm-list">
-            {state.trackers.map((t) => {
-              const pct = totals(t, state.books).all.pct;
+            {state.trackers.map((tr) => {
+              const pct = totals(tr, state.books).all.pct;
               return (
-                <li key={t.id} className="fm-row">
-                  <button className="fm-row-main" onClick={() => onOpen(t.id)}>
-                    <span className="fm-pct" style={{ background: t.color }}>
+                <li key={tr.id} className="fm-row">
+                  <button className="fm-row-main" onClick={() => onOpen(tr.id)}>
+                    <span className="fm-pct" style={{ background: tr.color }}>
                       {pct.toFixed(1)}%
                     </span>
-                    <span className="fm-row-name">{t.name}</span>
+                    <span className="fm-row-name">{tr.name}</span>
                     <span className="fm-chevron">›</span>
                   </button>
                   {editing && (
                     <div className="fm-row-actions">
-                      <button className="fm-smallbtn" onClick={() => openEdit(t)}>
-                        Edit
+                      <button className="fm-smallbtn" onClick={() => openEdit(tr)}>
+                        {t("edit")}
                       </button>
-                      <button className="fm-smallbtn fm-danger" onClick={() => remove(t.id)}>
-                        Delete
+                      <button className="fm-smallbtn fm-danger" onClick={() => remove(tr.id)}>
+                        {t("delete")}
                       </button>
                     </div>
                   )}
@@ -124,12 +125,12 @@ export function TrackerListView({
 
       {dialog && (
         <Modal
-          title={dialog.mode === "add" ? "Add new Bible Tracker" : "Edit Bible Tracker"}
+          title={dialog.mode === "add" ? t("addTrackerTitle") : t("editTrackerTitle")}
           onClose={() => setDialog(null)}
         >
-          <label className="fm-label">Name</label>
+          <label className="fm-label">{t("name")}</label>
           <input className="fm-input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          <label className="fm-label">Color</label>
+          <label className="fm-label">{t("color")}</label>
           <div className="fm-swatches">
             {TRACKER_COLORS.map((c) => (
               <button
@@ -137,16 +138,16 @@ export function TrackerListView({
                 className={`fm-swatch${c === color ? " is-active" : ""}`}
                 style={{ background: c }}
                 onClick={() => setColor(c)}
-                aria-label={`Color ${c}`}
+                aria-label={`${t("color")} ${c}`}
               />
             ))}
           </div>
           <div className="fm-modal-actions">
             <button className="fm-btn fm-btn-ghost" onClick={() => setDialog(null)}>
-              Cancel
+              {t("cancel")}
             </button>
             <button className="fm-btn fm-btn-primary" onClick={save}>
-              Save
+              {t("save")}
             </button>
           </div>
         </Modal>
