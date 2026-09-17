@@ -14,6 +14,7 @@ export interface Tracker {
 
 export interface Settings {
   theme: string;
+  language: Lang;
 }
 
 export interface AppState {

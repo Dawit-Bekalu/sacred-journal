@@ -66,6 +66,12 @@ export function useStore() {
   return ctx;
 }
 
+export function useT() {
+  const { state } = useStore();
+  const lang = state.settings.language;
+  return useCallback((key: TKey) => translate(lang, key), [lang]);
+}
+
 /* ---------- derived helpers ---------- */
 
 export const readCount = (tracker: Tracker, book: BookDef) =>
